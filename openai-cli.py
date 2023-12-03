@@ -39,7 +39,7 @@ class Conversation:
         self.messages = []
         self.stream = stream
 
-        self.model = 'gpt-3.5-turbo'
+        self.model = 'gpt-4'
         if model:
             self.mode = model
 
@@ -85,15 +85,15 @@ class Conversation:
 
 def main():
     parser = argparse.ArgumentParser('Start a conversation with an OpenAI language model')
-    parser.add_argument('-4', '--gpt4', action='store_true', help='Use GPT-4')
+    parser.add_argument('-3', '--gpt3', action='store_true', help='Use GPT-3.5')
     parser.add_argument('--no_stream', action='store_true', help='Do not use the OpenAI stream API')
     parser.add_argument('--proxy', help='Route requests to an intermediary proxy server')
     parser.add_argument('initial_query', nargs='*', help='Initial query for the model')
     args = parser.parse_args()
 
     model = ''
-    if args.gpt4:
-        model = 'gpt-4'
+    if args.gpt3:
+        model = 'gpt-3.5-turbo'
 
     stream = True
     if args.no_stream:
