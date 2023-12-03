@@ -8,6 +8,7 @@ import readline
 openai.api_key_path = './.env'
 
 PROMPT = '> '
+MULTILINE_PROMPT = '>>> '
 
 class TextColor:
     BLACK = '\033[30m'
@@ -118,13 +119,27 @@ def main():
             with ColorWriter(TextColor.GREEN):
                 query = input(PROMPT)
 
-            if query == 'exit' or query == 'exit()':
-                break
-            elif query == '':
+            if query == '':
                 continue
+
+            elif query == 'exit' or query == 'exit()':
+                break
+
             elif query == 'reset' or query == 'reset()':
                 conversation = Conversation(model=model)
                 continue
+
+            elif query == 'multi' or query == 'multi()':
+                lines = []
+                while True:
+                    try:
+                        with ColorWriter(TextColor.GREEN):
+                            line = input(MULTILINE_PROMPT)
+                        lines.append(line)
+                    except EOFError:  # Ctrl-D pressed, input ends.
+                        print()
+                        break
+                query = "\n".join(lines)
 
             conversation.speak(query)
             print()
