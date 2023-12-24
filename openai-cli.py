@@ -8,7 +8,7 @@ import readline
 openai.api_key_path = './.env'
 
 PROMPT = '> '
-MULTILINE_PROMPT = '>>> '
+MULTILINE_PROMPT = ''
 
 class TextColor:
     BLACK = '\033[30m'
