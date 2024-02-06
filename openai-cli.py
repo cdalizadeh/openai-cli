@@ -2,10 +2,12 @@
 
 import argparse
 import os
-import openai
 import readline
 
-openai.api_key_path = './.env'
+from dotenv import load_dotenv
+from openai import OpenAI
+
+load_dotenv()
 
 PROMPT = '> '
 MULTILINE_PROMPT = ''
@@ -42,13 +44,15 @@ class Conversation:
 
         self.model = 'gpt-4'
         if model:
-            self.mode = model
+            self.model = model
 
-    def speak(self, content):
+        self.client = OpenAI()
+
+    def ask(self, content):
         message = {'role': 'user', 'content': content}
         messages = self.messages + [message]
 
-        response = openai.ChatCompletion.create(
+        response = self.client.chat.completions.create(
             messages = messages,
             stream = self.stream,
             model = self.model,
@@ -56,38 +60,35 @@ class Conversation:
 
         if self.stream:
             collected_messages = []
-            with ColorWriter(TextColor.WHITE):
-                for chunk in response:
-                    chunk_message = chunk['choices'][0]['delta']
-                    collected_messages.append(chunk_message)
-                    print(chunk_message.get('content', ''), end='')
 
-            print()
-            response_content = ''.join([m.get('content', '') for m in collected_messages])
+            for chunk in response:
+                chunk_message = chunk.choices[0].delta.content
+                if chunk_message != None:
+                    collected_messages.append(chunk_message)
+                    yield chunk_message
+
+            response_content = ''.join([m for m in collected_messages])
             response_message = {'role': 'assistant', 'content': response_content}
 
+            self.messages.append(message)
+            self.messages.append(response_message)
+
         else:
-            response_message = response['choices'][0]['message']
-            response_content = response_message['content']
-            finish_reason = response['choices'][0]['finish_reason']
+            response_message = response.choices[0].message
+            response_content = response_message.content
+            finish_reason = response.choices[0].finish_reason
 
             if finish_reason != 'stop':
-                with ColorWriter(TextColor.YELLOW):
-                    print(f'Unexpected finish reason: {finish_reason}')
+                raise Exception('Unexpected finish reason: {finish_reason}')
 
-            with ColorWriter(TextColor.CYAN):
-                print(response_content)
+            yield response_content
 
-        self.messages.append(message)
-        self.messages.append(response_message)
-
-    def __del__(self):
-        print()
+            self.messages.append(message)
+            self.messages.append(response_message)
 
 def main():
     parser = argparse.ArgumentParser('Start a conversation with an OpenAI language model')
     parser.add_argument('-3', '--gpt3', action='store_true', help='Use GPT-3.5')
-    parser.add_argument('--no_stream', action='store_true', help='Do not use the OpenAI stream API')
     parser.add_argument('--proxy', help='Route requests to an intermediary proxy server')
     parser.add_argument('initial_query', nargs='*', help='Initial query for the model')
     args = parser.parse_args()
@@ -96,23 +97,21 @@ def main():
     if args.gpt3:
         model = 'gpt-3.5-turbo'
 
-    stream = True
-    if args.no_stream:
-        stream=False
-
     if args.proxy:
         openai.api_base = args.proxy
 
     initial_query = ' '.join(args.initial_query)
 
-    conversation = Conversation(model=model, stream=stream)
+    conversation = Conversation(model=model, stream=True)
 
     try:
         if initial_query:
             with ColorWriter(TextColor.GREEN):
                 print(PROMPT + initial_query)
 
-            conversation.speak(initial_query)
+            with ColorWriter(TextColor.WHITE):
+                for msg in conversation.ask(initial_query):
+                    print(msg, end='')
             print()
 
         while True:
@@ -141,8 +140,12 @@ def main():
                         break
                 query = "\n".join(lines)
 
-            conversation.speak(query)
-            print()
+            with ColorWriter(TextColor.WHITE):
+                for msg in conversation.ask(query):
+                    print(msg, end='')
+
+                print()
+                print()
 
     except KeyboardInterrupt:
         pass
