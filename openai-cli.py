@@ -42,7 +42,7 @@ class Conversation:
         self.messages = []
         self.stream = stream
 
-        self.model = 'gpt-4'
+        self.model = 'gpt-4o'
         if model:
             self.model = model
 
