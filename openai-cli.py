@@ -151,7 +151,7 @@ def main():
                 conversation = Conversation(model=model)
                 continue
 
-            elif query == 'multi' or query == 'multi()':
+            elif query == 'multi' or query == 'multi()' or query == 'm':
                 query = get_multi_input()
 
             with ColorWriter(TextColor.WHITE):
