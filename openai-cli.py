@@ -9,7 +9,7 @@ from openai import OpenAI
 
 load_dotenv()
 
-PROMPT = '> '
+PROMPT = '>> '
 MULTILINE_PROMPT = ''
 
 class TextColor:
@@ -87,6 +87,9 @@ class Conversation:
             self.messages.append(response_message)
 
 def get_multi_input():
+    with ColorWriter(TextColor.GREEN):
+        print(PROMPT)
+
     lines = []
     while True:
         try:
