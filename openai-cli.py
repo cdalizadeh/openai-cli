@@ -104,6 +104,7 @@ def main():
     parser = argparse.ArgumentParser('Start a conversation with an OpenAI language model')
     parser.add_argument('-3', '--gpt3', action='store_true', help='Use GPT-3.5')
     parser.add_argument('-m', '--multi', action='store_true', help='Start the conversation in multi mode')
+    parser.add_argument('-t', '--terminate', action='store_true', help='Terminate the conversation after a single question')
     parser.add_argument('--proxy', help='Route requests to an intermediary proxy server')
     parser.add_argument('initial_query', nargs='*', help='Initial query for the model')
     args = parser.parse_args()
@@ -115,6 +116,10 @@ def main():
     multi_mode = False
     if args.multi:
         multi_mode = True
+
+    terminate = False
+    if args.terminate:
+        terminate = True
 
     if args.proxy:
         openai.api_base = args.proxy
@@ -159,6 +164,9 @@ def main():
                     print(msg, end='')
                 print()
                 print()
+
+            if terminate:
+                break
 
     except KeyboardInterrupt:
         pass
