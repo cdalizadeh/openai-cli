@@ -41,11 +41,7 @@ class Conversation:
     def __init__(self, stream=True, model=''):
         self.messages = []
         self.stream = stream
-
-        self.model = 'gpt-4o'
-        if model:
-            self.model = model
-
+        self.model = 'gpt-4o' if not model else model
         self.client = OpenAI()
 
     def ask(self, content):
@@ -67,24 +63,19 @@ class Conversation:
                     collected_messages.append(chunk_message)
                     yield chunk_message
 
-            response_content = ''.join([m for m in collected_messages])
+            response_content = ''.join(collected_messages)
             response_message = {'role': 'assistant', 'content': response_content}
-
-            self.messages.append(message)
-            self.messages.append(response_message)
-
+            self.messages.extend([message, response_message])
         else:
             response_message = response.choices[0].message
             response_content = response_message.content
             finish_reason = response.choices[0].finish_reason
 
             if finish_reason != 'stop':
-                raise Exception('Unexpected finish reason: {finish_reason}')
+                raise Exception(f'Unexpected finish reason: {finish_reason}')
 
             yield response_content
-
-            self.messages.append(message)
-            self.messages.append(response_message)
+            self.messages.extend([message, response_message])
 
 def get_multi_input():
     with ColorWriter(TextColor.GREEN):
@@ -102,7 +93,6 @@ def get_multi_input():
     query = "\n".join(lines)
     return query
 
-
 def main():
     parser = argparse.ArgumentParser('Start a conversation with an OpenAI language model')
     parser.add_argument('-3', '--gpt3', action='store_true', help='Use GPT-3.5')
@@ -112,17 +102,9 @@ def main():
     parser.add_argument('initial_query', nargs='*', help='Initial query for the model')
     args = parser.parse_args()
 
-    model = ''
-    if args.gpt3:
-        model = 'gpt-3.5-turbo'
-
-    multi_mode = False
-    if args.multi:
-        multi_mode = True
-
-    terminate = False
-    if args.terminate:
-        terminate = True
+    model = 'gpt-3.5-turbo' if args.gpt3 else 'gpt-4o'
+    multi_mode = args.multi
+    terminate = args.terminate
 
     if args.proxy:
         openai.api_base = args.proxy
@@ -155,11 +137,11 @@ def main():
             elif query == 'exit' or query == 'exit()':
                 break
 
-            elif query == 'reset' or query == 'reset()':
+            elif query in ('reset', 'reset()'):
                 conversation = Conversation(model=model)
                 continue
 
-            elif query == 'multi' or query == 'multi()' or query == 'm':
+            elif query in ('multi', 'multi()', 'm'):
                 query = get_multi_input()
 
             with ColorWriter(TextColor.WHITE):
