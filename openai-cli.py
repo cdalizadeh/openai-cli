@@ -7,6 +7,8 @@ import readline
 from dotenv import load_dotenv
 from openai import OpenAI
 
+readline.parse_and_bind('set enable-bracketed-paste on')
+
 load_dotenv()
 
 PROMPT = '>> '
