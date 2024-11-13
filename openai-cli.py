@@ -7,8 +7,6 @@ import readline
 from dotenv import load_dotenv
 from openai import OpenAI
 
-readline.parse_and_bind('set enable-bracketed-paste on')
-
 load_dotenv()
 
 PROMPT = '>> '
@@ -83,6 +81,7 @@ def get_multi_input():
     with ColorWriter(TextColor.GREEN):
         print(PROMPT)
 
+    readline.parse_and_bind('set enable-bracketed-paste on')
     lines = []
     while True:
         try:
@@ -90,9 +89,16 @@ def get_multi_input():
                 line = input(MULTILINE_PROMPT)
             lines.append(line)
         except EOFError:  # Ctrl-D pressed, input ends.
+            readline.parse_and_bind('set enable-bracketed-paste off')
             print()
             break
     query = "\n".join(lines)
+    return query
+
+def get_input():
+    with ColorWriter(TextColor.GREEN):
+        query = input(PROMPT)
+
     return query
 
 def main():
@@ -130,13 +136,12 @@ def main():
                 multi_mode = False
 
             else:
-                with ColorWriter(TextColor.GREEN):
-                    query = input(PROMPT)
+                query = get_input()
 
             if query == '':
                 continue
 
-            elif query == 'exit' or query == 'exit()':
+            elif query in ('exit', 'exit()'):
                 break
 
             elif query in ('reset', 'reset()'):
