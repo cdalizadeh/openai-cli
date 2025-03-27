@@ -151,11 +151,22 @@ def main():
             elif query in ('multi', 'multi()', 'm'):
                 query = get_multi_input()
 
-            with ColorWriter(TextColor.WHITE):
-                for msg in conversation.ask(query):
+            color = TextColor.WHITE
+            newline = True
+            for msg in conversation.ask(query):
+                if newline and msg.startswith('#'):
+                    color = TextColor.MAGENTA
+
+                if msg.endswith('\n'):
+                    newline = True
+                    color = TextColor.WHITE
+                else:
+                    newline = False
+
+                with ColorWriter(color):
                     print(msg, end='')
-                print()
-                print()
+            print()
+            print()
 
             if terminate:
                 break
