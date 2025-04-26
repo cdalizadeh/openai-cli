@@ -2,16 +2,19 @@
 
 import argparse
 import os
-import readline
+import tempfile
+import subprocess
 
 from dotenv import load_dotenv
 from openai import OpenAI
+from prompt_toolkit import PromptSession
+from prompt_toolkit.enums import EditingMode
+from prompt_toolkit.styles import Style
+from prompt_toolkit.key_binding import KeyBindings
 
 load_dotenv()
 
-PROMPT = '>> '
-MULTILINE_PROMPT = ''
-
+# Define color constants
 class TextColor:
     BLACK = '\033[30m'
     RED = '\033[31m'
@@ -26,6 +29,10 @@ class TextColor:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
     ITALIC = '\033[3m'
+
+PROMPT = '>> '
+PROMPT_COLOR_ANSI = TextColor.GREEN
+PROMPT_COLOR_PT = 'ansigreen'
 
 class ColorWriter:
     def __init__(self, color):
@@ -59,7 +66,7 @@ class Conversation:
 
             for chunk in response:
                 chunk_message = chunk.choices[0].delta.content
-                if chunk_message != None:
+                if chunk_message is not None:
                     collected_messages.append(chunk_message)
                     yield chunk_message
 
@@ -77,45 +84,90 @@ class Conversation:
             yield response_content
             self.messages.extend([message, response_message])
 
-def get_multi_input():
-    with ColorWriter(TextColor.GREEN):
-        print(PROMPT)
+def open_editor_with_content(initial_content=''):
+    """Open the default editor with initial content and return the edited content."""
+    # Create a temporary file
+    with tempfile.NamedTemporaryFile(suffix='.txt', delete=False) as tmp:
+        tmp_path = tmp.name
+        # Write the initial content to the file
+        tmp.write(initial_content.encode('utf-8'))
 
-    readline.parse_and_bind('set enable-bracketed-paste on')
-    lines = []
-    while True:
-        try:
-            with ColorWriter(TextColor.GREEN):
-                line = input(MULTILINE_PROMPT)
-            lines.append(line)
-        except EOFError:  # Ctrl-D pressed, input ends.
-            readline.parse_and_bind('set enable-bracketed-paste off')
-            print()
-            break
-    query = "\n".join(lines)
-    return query
+    try:
+        # Get the default editor from environment or use a fallback
+        editor = os.environ.get('EDITOR', 'vim')
+
+        # Open the editor with the temporary file
+        subprocess.run([editor, tmp_path], check=True)
+
+        # Read the content after editing
+        with open(tmp_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Remove trailing newlines to avoid blank lines
+        content = content.rstrip('\n')
+
+        return content
+    finally:
+        # Clean up the temporary file
+        os.unlink(tmp_path)
 
 def get_input():
-    with ColorWriter(TextColor.GREEN):
-        query = input(PROMPT)
+    # Define style for the prompt and input using the shared constant
+    style = Style.from_dict({
+        'prompt': PROMPT_COLOR_PT,  # Green color for prompt from shared constant
+        '': PROMPT_COLOR_PT,        # Green color for user input from shared constant
+    })
+
+    # Create key bindings for Ctrl-T
+    kb = KeyBindings()
+
+    @kb.add('c-t')
+    def _(event):
+        """Open editor when Control-T is pressed."""
+        # Get the current buffer text to pass to the editor
+        buffer_text = event.app.current_buffer.text
+
+        # Open the editor with the current buffer content
+        edited_text = open_editor_with_content(buffer_text)
+
+        # Put the edited text directly into the buffer
+        event.app.current_buffer.document = event.app.current_buffer.document.__class__(
+            edited_text,
+            cursor_position=len(edited_text)
+        )
+
+        # Exit with the edited text as result
+        event.app.exit(result=edited_text)
+
+    # Configure prompt_toolkit session with vi editing mode
+    session = PromptSession(
+        editing_mode=EditingMode.VI,  # VI editing mode
+        key_bindings=kb  # Add our key bindings
+    )
+
+    # Use prompt_toolkit with styled prompt and input
+    query = session.prompt(
+        [('class:prompt', PROMPT)],
+        style=style,
+        complete_while_typing=False,
+        enable_history_search=True
+    )
 
     return query
 
 def main():
     parser = argparse.ArgumentParser('Start a conversation with an OpenAI language model')
     parser.add_argument('-3', '--gpt3', action='store_true', help='Use GPT-3.5')
-    parser.add_argument('-m', '--multi', action='store_true', help='Start the conversation in multi mode')
     parser.add_argument('-t', '--terminate', action='store_true', help='Terminate the conversation after a single question')
     parser.add_argument('--proxy', help='Route requests to an intermediary proxy server')
     parser.add_argument('initial_query', nargs='*', help='Initial query for the model')
     args = parser.parse_args()
 
     model = 'gpt-3.5-turbo' if args.gpt3 else 'gpt-4o'
-    multi_mode = args.multi
     terminate = args.terminate
 
     if args.proxy:
-        openai.api_base = args.proxy
+        os.environ['OPENAI_API_BASE'] = args.proxy
 
     initial_query = ' '.join(args.initial_query)
 
@@ -124,17 +176,10 @@ def main():
     try:
         while True:
             if initial_query:
-                with ColorWriter(TextColor.GREEN):
-                    print(PROMPT + initial_query)
-
+                # For consistency with prompt_toolkit styling, keep entire line green
+                print(f"{PROMPT_COLOR_ANSI}{PROMPT}{initial_query}{TextColor.RESET}")
                 query = initial_query
-                initial_query = False
-                multi_mode = False
-
-            elif multi_mode:
-                query = get_multi_input()
-                multi_mode = False
-
+                initial_query = None
             else:
                 query = get_input()
 
@@ -147,9 +192,6 @@ def main():
             elif query in ('reset', 'reset()'):
                 conversation = Conversation(model=model)
                 continue
-
-            elif query in ('multi', 'multi()', 'm'):
-                query = get_multi_input()
 
             color = TextColor.WHITE
             newline = True
