@@ -87,7 +87,7 @@ class Conversation:
 def open_editor_with_content(initial_content=''):
     """Open the default editor with initial content and return the edited content."""
     # Create a temporary file
-    with tempfile.NamedTemporaryFile(suffix='.txt', delete=False) as tmp:
+    with tempfile.NamedTemporaryFile(suffix='.md', delete=False) as tmp:
         tmp_path = tmp.name
         # Write the initial content to the file
         tmp.write(initial_content.encode('utf-8'))
