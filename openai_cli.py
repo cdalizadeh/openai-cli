@@ -44,7 +44,7 @@ class ColorWriter:
     def __enter__(self):
         print(self.color, end="")
 
-    def __exit__(self, *args):
+    def __exit__(self, *_):
         print(TextColor.RESET, end="")
 
 
@@ -70,7 +70,7 @@ class Conversation:
 
             for chunk in response:
                 chunk_message = chunk.choices[0].delta.content
-                if chunk_message is not None:
+                if chunk_message is not None and chunk_message != "":
                     collected_messages.append(chunk_message)
                     yield chunk_message
 
